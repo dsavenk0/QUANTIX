@@ -2,7 +2,7 @@
 
 **QUANTIX** is a high-performance dashboard for real-time analysis of cryptocurrency markets. It provides traders with powerful tools to track price dynamics, trading volumes, and market sentiment across several leading exchanges.
 
-![QUANTIX](https://github.com/dsavenk0/QUANTIX/ascii.gif)
+![QUANTIX](https://github.com/dsavenk0/QUANTIX/ascii-art.png)
 
 ## 🚀 Key Features
 
