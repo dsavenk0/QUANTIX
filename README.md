@@ -1,138 +1,137 @@
-# QUANTIX: Продвинутая панель для анализа криптовалют
+# QUANTIX: Advanced Cryptocurrency Analysis Dashboard
 
-**QUANTIX** — это высокопроизводительная дашборд-панель для анализа криптовалютных рынков в реальном времени. Она предоставляет трейдерам мощные инструменты для отслеживания динамики цен, объемов торгов и настроений рынка на нескольких ведущих биржах.
+**QUANTIX** is a high-performance dashboard for real-time analysis of cryptocurrency markets. It provides traders with powerful tools to track price dynamics, trading volumes, and market sentiment across several leading exchanges.
 
-![QUANTIX Screenshot](https://raw.githubusercontent.com/firebase/studio-e2e-testing/main/apps/quantix-crypto-dashboard/docs/screenshot.png)
 
-## 🚀 Основные возможности
+## 🚀 Key Features
 
-- **Продвинутые графики**: Интеграция с **TradingView Advanced Charts** для профессионального технического анализа.
-- **Мультибиржевая поддержка**: Бесшовное переключение между **Binance, Kraken, Bybit, OKX**.
-- **Данные в реальном времени**: Прямое подключение к **WebSockets** бирж для мгновенного получения обновлений по ценам, сделкам и стакану заявок.
-- **Динамическая сетка виджетов**:
-    - **Перетаскивание (Drag-and-Drop)**: Легко меняйте расположение виджетов.
-    - **Изменение размера**: Настраивайте высоту каждого виджета.
-    - **Разворачивание/Сворачивание**: Максимизируйте виджет для детального анализа или сворачивайте для компактного вида.
-    - **Закрепление (Pinning)**: Фиксируйте самые важные виджеты вверху экрана.
-- **Ключевые аналитические виджеты**:
-    - **Top Movers**: Список 100 самых активных активов по объему торгов.
-    - **Order Book**: Детализированный стакан заявок с визуализацией глубины рынка.
-    - **Market Sentiment**: Индикатор настроения рынка на основе соотношения покупок и продаж.
-    - **Cumulative Delta**: График кумулятивной дельты для отслеживания давления покупателей и продавцов.
-- **Персонализация**: Все настройки раскладки, видимости и состояния виджетов **сохраняются в cookies**, чтобы ваш интерфейс оставался прежним при следующем визите.
-- **Адаптивный дизайн**: Оптимизирован для работы как на десктопных, так и на мобильных устройствах.
+- **Advanced Charts**: Integration with **TradingView Advanced Charts** for professional technical analysis.
+- **Multi-Exchange Support**: Seamless switching between **Binance, Kraken, Bybit, OKX**.
+- **Real-Time Data**: Direct connection to exchange **WebSockets** for instant updates on prices, trades, and the order book.
+- **Dynamic Widget Grid**:
+    - **Drag-and-Drop**: Easily rearrange widgets.
+    - **Resizing**: Adjust the height of each widget.
+    - **Expand/Collapse**: Maximize a widget for detailed analysis or collapse it for a compact view.
+    - **Pinning**: Pin the most important widgets to the top of the screen.
+- **Key Analytical Widgets**:
+    - **Top Movers**: A list of the 100 most active assets by trading volume.
+    - **Order Book**: A detailed order book with market depth visualization.
+    - **Market Sentiment**: A market sentiment indicator based on the ratio of buy and sell orders.
+    - **Cumulative Delta**: A cumulative delta chart to track buyer and seller pressure.
+- **Personalization**: All layout, visibility, and widget state settings are **saved in cookies**, so your interface remains the same on your next visit.
+- **Responsive Design**: Optimized for both desktop and mobile devices.
 
 ---
 
-## ⚙️ Архитектура
+## ⚙️ Architecture
 
-Проект построен на современных веб-технологиях с упором на производительность и расширяемость.
+The project is built on modern web technologies with a focus on performance and extensibility.
 
-### Фронтенд
+### Frontend
 
-- **Фреймворк**: **Next.js 15** с использованием App Router.
-- **UI**: **React 19** в связке с библиотекой компонентов **ShadCN UI** и стилизацией через **Tailwind CSS**.
-- **Графики**: Центральный элемент — **TradingView Advanced Charts Widget**, который предоставляет широкие возможности для анализа.
+- **Framework**: **Next.js 15** with the App Router.
+- **UI**: **React 19** paired with the **ShadCN UI** component library and styled with **Tailwind CSS**.
+- **Charts**: The central element is the **TradingView Advanced Charts Widget**, which provides extensive analysis capabilities.
 
-### Управление состоянием
+### State Management
 
-Система управления состоянием является полностью декларативной и построена на нативных **React Hooks** (`useState`, `useEffect`, `useMemo`, `useCallback`).
+The state management system is fully declarative and built on native **React Hooks** (`useState`, `useEffect`, `useMemo`, `useCallback`).
 
-- **Источник истины**: `src/app/page.tsx` является "умным" компонентом, который владеет всем состоянием дашборда (выбранная биржа, пара, состояние виджетов).
-- **Презентационные компоненты**: Компоненты виджетов (`TopMovers`, `OrderBook` и т.д.) являются "глупыми". Они только отображают данные и вызывают функции-обработчики, которые получают через `props`.
-- **Сохранение состояния**: Для сохранения пользовательских настроек между сессиями (раскладка, видимость виджетов, тема) используются **Cookies**. Это позволяет избежать необходимости в бэкенде для персонализации.
+- **Source of Truth**: `src/app/page.tsx` is the "smart" component that owns the entire state of the dashboard (selected exchange, pair, widget states).
+- **Presentational Components**: Widget components (`TopMovers`, `OrderBook`, etc.) are "dumb". They only display data and call handler functions received through `props`.
+- **State Persistence**: **Cookies** are used to save user settings between sessions (layout, widget visibility, theme). This eliminates the need for a backend for personalization.
 
-### Система виджетов
+### Widget System
 
-Это ядро интерактивности приложения. Вся раскладка, включая порядок, размеры и состояние (свёрнуто/развёрнуто/закреплено), управляется через единый центральный стейт `widgets` в `page.tsx`.
+This is the core of the application's interactivity. The entire layout, including order, sizes, and state (collapsed/expanded/pinned), is managed through a single central state `widgets` in `page.tsx`.
 
-- **Состояние**:
+- **State**:
     ```typescript
-    // Ключи, идентифицирующие каждый виджет
+    // Keys to identify each widget
     type WidgetKey = 'topMovers' | 'orderBook' | 'marketSentiment' | 'cumulativeDelta';
 
-    // Объект, описывающий состояние одной позиции в сетке виджетов
+    // Object describing the state of one position in the widget grid
     export type WidgetState = { 
-      key: WidgetKey;    // Какой виджет находится в этой ячейке
-      expanded: boolean; // Развёрнут ли на всю ширину
-      pinned: boolean;   // Закреплён ли (нельзя перемещать/сворачивать)
-      height: number;    // Текущая высота в пикселях
+      key: WidgetKey;    // Which widget is in this cell
+      expanded: boolean; // Is it expanded to full width
+      pinned: boolean;   // Is it pinned (cannot be moved/collapsed)
+      height: number;    // Current height in pixels
     };
     ```
-- **Раскладка**: Используется **CSS Grid** с двумя колонками на десктопе. Виджеты могут занимать одну или обе колонки (`isFullWidth`). Особая логика применяется для последнего нечётного виджета в ряду, чтобы он занимал всю ширину, создавая сбалансированный вид.
-- **Интерактивность**:
-    - **Перетаскивание (Drag-and-Drop)**: Реализовано с помощью библиотеки `dnd-kit`. Важная деталь: при перетаскивании меняются местами только "ключи" (`key`) виджетов, а их свойства (размер, статус) остаются привязанными к ячейке сетки. Это позволяет перемещать контент, сохраняя структуру раскладки.
-    - **Изменение размера (Resizing)**: Реализовано с помощью нативных обработчиков событий мыши (`onMouseDown`) и сенсорного ввода (`onTouchStart`) на специальном элементе в футере виджета. Высота синхронизируется между "соседями" по ряду на десктопе.
-    - **Закрепление (Pinning)**: Закреплённый виджет всегда развёрнут на всю ширину и не может быть перемещён или изменён в размере.
+- **Layout**: A **CSS Grid** with two columns is used on desktop. Widgets can occupy one or both columns (`isFullWidth`). Special logic is applied to the last odd widget in a row to make it span the full width, creating a balanced look.
+- **Interactivity**:
+    - **Drag-and-Drop**: Implemented using the `dnd-kit` library. An important detail: when dragging, only the widget "keys" (`key`) are swapped, while their properties (size, status) remain tied to the grid cell. This allows moving content while preserving the layout structure.
+    - **Resizing**: Implemented using native mouse (`onMouseDown`) and touch (`onTouchStart`) event handlers on a special element in the widget's footer. The height is synchronized between "neighbors" in the same row on desktop.
+    - **Pinning**: A pinned widget is always expanded to full width and cannot be moved or resized.
 
-### Интеграция с биржами
+### Exchange Integration
 
-Архитектура построена так, чтобы легко добавлять новые биржи.
+The architecture is designed to make it easy to add new exchanges.
 
-- **Расположение**: Вся логика находится в `src/lib/exchanges/`.
-- **Интерфейс `ExchangeClient`**: Каждая биржа реализует общий интерфейс (`client.ts`), который определяет методы для:
-    - `fetchKlines`: Загрузка исторических данных свечей (OHLCV).
-    - `fetchOrderBook`: Загрузка стакана заявок.
-    - `fetchAllSymbols`: Получение списка всех доступных торговых пар.
-    - `connect`: Установка WebSocket-соединения для получения данных в реальном времени.
-- **Фабрика клиентов**: Файл `src/lib/exchanges/index.ts` экспортирует функцию `getExchangeClient`, которая возвращает нужный клиент по его названию.
+- **Location**: All logic is located in `src/lib/exchanges/`.
+- **`ExchangeClient` Interface**: Each exchange implements a common interface (`client.ts`) that defines methods for:
+    - `fetchKlines`: Loading historical candlestick data (OHLCV).
+    - `fetchOrderBook`: Loading the order book.
+    - `fetchAllSymbols`: Getting a list of all available trading pairs.
+    - `connect`: Establishing a WebSocket connection to receive real-time data.
+- **Client Factory**: The file `src/lib/exchanges/index.ts` exports a `getExchangeClient` function that returns the required client by its name.
 
 ---
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```
 src
 ├── app
-│   ├── page.tsx               # Главная страница, ядро логики и состояния
-│   └── layout.tsx             # Корневой макет
+│   ├── page.tsx               # Main page, core logic and state
+│   └── layout.tsx             # Root layout
 ├── components
-│   ├── dashboard              # Компоненты дашборда
-│   │   ├── chart-panel.tsx    # Панель с графиком TradingView
-│   │   ├── draggable-widget.tsx # HOC для Drag-and-Drop
-│   │   └── *.tsx              # Компоненты виджетов (OrderBook, TopMovers и т.д.)
-│   ├── layout                 # Компоненты макета (Header, LoadingScreen)
-│   └── ui                     # Компоненты из ShadCN
+│   ├── dashboard              # Dashboard components
+│   │   ├── chart-panel.tsx    # Panel with the TradingView chart
+│   │   ├── draggable-widget.tsx # HOC for Drag-and-Drop
+│   │   └── *.tsx              # Widget components (OrderBook, TopMovers, etc.)
+│   ├── layout                 # Layout components (Header, LoadingScreen)
+│   └── ui                     # Components from ShadCN
 ├── hooks
-│   ├── use-mobile.tsx         # Хук для определения мобильного устройства
-│   └── use-toast.ts           # Хук для уведомлений
+│   ├── use-mobile.tsx         # Hook to detect mobile devices
+│   └── use-toast.ts           # Hook for notifications
 └── lib
-    ├── exchanges              # Логика для работы с биржами
-    │   ├── client.ts          # Интерфейс клиента биржи
-    │   ├── index.ts           # Фабрика клиентов
-    │   └── [exchange].ts      # Реализации клиентов (binance.ts, kraken.ts)
-    ├── indicators.ts          # Функции для расчета технических индикаторов
-    └── utils.ts               # Утилиты
+    ├── exchanges              # Logic for working with exchanges
+    │   ├── client.ts          # Exchange client interface
+    │   ├── index.ts           # Client factory
+    │   └── [exchange].ts      # Client implementations (binance.ts, kraken.ts)
+    ├── indicators.ts          # Functions for calculating technical indicators
+    └── utils.ts               # Utilities
 ```
 
 ---
 
-## 🔧 Кастомизация и расширение
+## 🔧 Customization and Extension
 
-### Как добавить новый виджет?
+### How to add a new widget?
 
-1.  **Создайте компонент**: Напишите новый React-компонент в `src/components/dashboard/`. Он должен принимать `props` из `page.tsx` (функции `onHide`, `onExpand` и т.д.).
-2.  **Добавьте ключ**: Расширьте тип `WidgetKey` в `src/app/page.tsx`, добавив уникальный идентификатор для вашего виджета.
-3.  **Инициализируйте состояние**: Добавьте новый виджет в начальные состояния `widgets` и `widgetVisibility` в `page.tsx`.
-4.  **Добавьте логику рендеринга**: В JSX-разметке `page.tsx` добавьте `else if` блок для рендеринга вашего компонента по его `key`.
+1.  **Create the component**: Write a new React component in `src/components/dashboard/`. It should accept `props` from `page.tsx` (functions like `onHide`, `onExpand`, etc.).
+2.  **Add a key**: Extend the `WidgetKey` type in `src/app/page.tsx` by adding a unique identifier for your widget.
+3.  **Initialize the state**: Add the new widget to the initial states of `widgets` and `widgetVisibility` in `page.tsx`.
+4.  **Add rendering logic**: In the JSX markup of `page.tsx`, add an `else if` block to render your component based on its `key`.
 
-### Как добавить новую биржу?
+### How to add a new exchange?
 
-1.  **Создайте клиент**: В папке `src/lib/exchanges/` создайте файл `my-exchange.ts`.
-2.  **Реализуйте интерфейс**: Создайте класс, который реализует интерфейс `ExchangeClient`, и напишите логику для всех его методов, используя API и WebSocket-эндпоинты новой биржи.
-3.  **Зарегистрируйте клиент**: В файле `src/lib/exchanges/index.ts` импортируйте ваш новый клиент и добавьте его в объект `exchangeClients`.
+1.  **Create the client**: In the `src/lib/exchanges/` folder, create a file `my-exchange.ts`.
+2.  **Implement the interface**: Create a class that implements the `ExchangeClient` interface and write the logic for all its methods using the new exchange's API and WebSocket endpoints.
+3.  **Register the client**: In the `src/lib/exchanges/index.ts` file, import your new client and add it to the `exchangeClients` object.
 
 ---
 
-## 🏁 Локальный запуск
+## 🏁 Local Setup
 
-1.  **Установите зависимости**:
+1.  **Install dependencies**:
     ```bash
     npm install
     ```
-2.  **Запустите сервер для разработки**:
+2.  **Start the development server**:
     ```bash
     npm run dev
     ```
 
-Приложение будет доступно по адресу `http://localhost:3000`.
+The application will be available at `http://localhost:3000`.
