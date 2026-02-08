@@ -136,3 +136,30 @@ src
     ```
 
 The application will be available at `http://localhost:3000`.
+
+
+## 🔮 Future Potential
+
+QUANTIX is built on a solid foundation that allows for significant future expansion. The roadmap is focused on empowering traders with even more powerful and intelligent tools:
+
+-   **Portfolio Tracking & Management**:
+    -   Connect exchange accounts via read-only API keys to track portfolio performance in real-time.
+    -   Get a consolidated view of assets across all connected exchanges.
+-   **Advanced Alerting System**:
+    -   Create complex, multi-conditional alerts based on price, volume, technical indicators, or cumulative delta movements.
+    -   Receive browser or email notifications.
+-   **AI-Powered Insights**:
+    -   Integrate a GenAI agent to perform sentiment analysis on news and social media for selected assets.
+    -   Provide AI-generated summaries of market conditions or technical analysis patterns.
+-   **Paper Trading & Backtesting**:
+    -   A sandboxed environment to test trading strategies without risking real capital.
+    -   Backtest strategies against historical data to evaluate their potential effectiveness.
+-   **Expanded Widget Library**:
+    -   **Heatmaps**: Visualize market performance across a wide range of assets.
+    -   **Funding Rates & Open Interest**: For derivatives traders.
+    -   **News Feed**: A real-time stream of market-moving news relevant to your watched assets.
+-   **Deeper Customization & Community Features**:
+    -   Save and share custom indicator templates and chart layouts.
+    -   Create public or private watchlists that can be shared with others.
+
+---
