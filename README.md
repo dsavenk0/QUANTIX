@@ -101,8 +101,8 @@ graph TD
     subgraph Processor["🧠 Processor Service (services/processor)"]
         direction TB
         REGISTRY["obStateRegistry\nthread-safe RWMutex registry\nO(1) GetOrCreate per event"]
-        OB["L2 Orderbook Engine\ninternal/state/orderbook.go\nFloat64 map + cached bestBid/bestAsk\nO(1) GetMidPrice · single-sort GetStats"]
-        CVD["CVD Manager\ninternal/state/cvd.go\nRing Buffer Buckets · 5 intervals\n1s Forward-Fill Ticker"]
+        OB["L2 Orderbook Engine\ninternal/orderbook/book.go · updater.go\nCached depth stats (1.5%—30%)\nConsolidated single source of truth"]
+        CVD["CVD Manager\ninternal/cvd/engine.go\nRing Buffer Buckets · 5 intervals\n1s Forward-Fill Ticker"]
         FP["Footprint Engine\ninternal/footprint/engine.go\nIn-memory Ring Buffer\nDelta emission per trade"]
         FUNDING["Funding Calculator\ninternal/funding/calculator.go\nOI-weighted global rate\nUpdateExchange() atomic update"]
         L3["L3 Microstructure Module\ninternal/l3/ ← FEATURE FLAG\nVirtualQueue + K-Means Clustering\nnil when ENABLE_L3=false"]
@@ -201,9 +201,10 @@ Stays permanently connected to exchange WebSockets and converts raw, inconsisten
 
 Core calculation engine. Subscribes to the NATS queue, rebuilds the full L2 orderbook in memory, and derives all metrics from it.
 
-- **`internal/state/orderbook.go`** — Thread-safe L2 orderbook. Uses `float64` maps for O(1) apply. Caches `bestBid`/`bestAsk` so `GetMidPrice()` is **O(1)**. Single `sortedSnapshot()` shared by both `GetSnapshot()` and `GetStats()` — one sort, one lock.
-- **`internal/state/cvd.go`** — CVD across `raw`, `1m`, `5m`, `15m`, `1h`. Ring buffer, 24h pruning, 1s forward-fill ticker for gap-free charts.
+- **`internal/orderbook/`** — Consolidated L2 engine (`book.go`, `updater.go`). Thread-safe maps + cached bestBid/bestAsk. Calculates liquidity depth at 1.5%, 3%, 5%, 8%, 10%, 15%, and 30% intervals as a single source of truth for all services.
+- **`internal/cvd/engine.go`** — CVD across `raw`, `1m`, `5m`, `15m`, `1h`. Ring buffer, 24h pruning, 1s forward-fill ticker for gap-free charts.
 - **`internal/footprint/engine.go`** — In-memory Footprint ring buffer. Emits `FootprintDelta` per trade for live candle updates.
+- **`internal/dom/` & `internal/heatmap/`** — Migrated engines for Depth of Market and Orderbook Heatmaps, preserved for future visualization wiring.
 - **`internal/funding/calculator.go`** — OI-weighted global funding rate. `UpdateExchange()` merges both fields atomically under one lock.
 - **`internal/l3/`** *(Feature Flagged)* — When `ENABLE_L3=true`: FIFO virtual-order queue + K-Means clustering (Retail/Pro/Whale). When **off**: `l3Mgr` is `nil` — zero allocation, zero CPU.
 - **`internal/history/`** — Async ClickHouse batcher. `strconv.ParseFloat` with explicit error logging (no silent zero-inserts).
@@ -296,13 +297,18 @@ QUANTIX/
 │   ├── processor/                  # L2 Engine, CVD, Footprint, Funding, L3
 │   │   ├── cmd/main.go             # Entry: NATS consumer + obStateRegistry + egress pool
 │   │   └── internal/
-│   │       ├── state/              # orderbook.go, cvd.go, dom.go, heatmap.go
+│   │       ├── orderbook/          # book.go, updater.go — consolidated logic
+│   │       ├── cvd/                # engine.go — ring buffer
 │   │       ├── footprint/          # engine.go — ring buffer + delta emission
 │   │       ├── funding/            # calculator.go, repository.go
+│   │       ├── dom/                # engine.go — migrated DOM profile logic
+│   │       ├── heatmap/            # engine.go — migrated heatmap capture logic
 │   │       ├── history/            # batcher.go, repository.go, clickhouse_ddl.sql
 │   │       ├── gateway/            # hub.go, client.go, models.go
 │   │       ├── l3/                 # manager.go, reconstructor.go, kmeans.go
-│   │       └── db/                 # ClickHouse connection wrapper
+│   │       ├── db/                 # ClickHouse connection wrapper
+│   │       ├── liquidation/        # liquidation_processor.go
+│   │       └── marketstats/        # engine.go (OI, funding, long/short ratio)
 │   ├── arbitrage/                  # Cross-exchange arbitrage screener
 │   └── api/                        # REST API service
 ├── pkg/shared/
@@ -356,7 +362,8 @@ QUANTIX/
 - [x] Funding Rate Calculator — OI-weighted global rate with atomic UpdateExchange()
 - [x] Cross-Exchange Arbitrage Scanner (renamed from `scanner` → `arbitrage`)
 - [x] Modular Exchange Adapters — all 7 exchanges refactored to unified structure
-- [x] **Architectural Fixes**: thread-safe `obStateRegistry`, O(1) `GetMidPrice`, dedup sort, shared `pkg/shared/intervals`, `strconv.ParseFloat` error handling, clean shutdown
+- [x] **Architectural Audit & Cleanup**: Consolidated L2 stats calculation, removed redundant `internal/stats`, migrated legacy `dom`/`heatmap` code out of `state` package.
+- [x] **Core Refinements**: thread-safe `obStateRegistry`, O(1) `GetMidPrice`, dedup sort, shared `pkg/shared/intervals`, `strconv.ParseFloat` error handling, clean shutdown
 
 ### ⏳ Phase 3.3: Analytics UI [IN PROGRESS]
 
