@@ -90,44 +90,44 @@ graph TD
 
     subgraph Ingestor["📥 Ingestor Service (services/ingestor)"]
         direction TB
-        ADAPT["ExchangeAdapter Interface\nOne adapter per exchange\nadapter/orderbook/trades/util.go"]
-        NORM["Unified Normalizer\nConverts raw JSON → Go models\nOrderbookSnapshot, Trade, OI..."]
+        ADAPT["ExchangeAdapter Interface"]
+        NORM["Unified Normalizer"]
     end
 
     subgraph NATS["⚡ NATS JetStream (Message Broker)"]
-        TOPIC["Durable Streams\nmarket.binancef.btcusdt.book_snapshot\nmarket.bybit.ethusdt.trade\nmarket.okx.btcusdt.open_interest\n..."]
+        TOPIC["Durable Streams\nmarket.{exchange}.{symbol}.{type}"]
     end
 
     subgraph Processor["🧠 Processor Service (services/processor)"]
         direction TB
-        REGISTRY["obStateRegistry\nthread-safe RWMutex registry\nO(1) GetOrCreate per event"]
-        OB["L2 Orderbook Engine\ninternal/orderbook/book.go · updater.go\nCached depth stats (1.5%—30%)\nConsolidated single source of truth"]
-        CVD["CVD Manager\ninternal/cvd/engine.go\nRing Buffer Buckets · 5 intervals\n1s Forward-Fill Ticker"]
-        FP["Footprint Engine\ninternal/footprint/engine.go\nIn-memory Ring Buffer\nDelta emission per trade"]
-        FUNDING["Funding Calculator\ninternal/funding/calculator.go\nOI-weighted global rate\nUpdateExchange() atomic update"]
-        L3["L3 Microstructure Module\ninternal/l3/ ← FEATURE FLAG\nVirtualQueue + K-Means Clustering\nnil when ENABLE_L3=false"]
-        HIST["ClickHouse Batcher\ninternal/history/\nAsync Fire-and-Forget Workers\nZSTD(3) · 90-day TTL"]
-        EGRESS["Egress Workers Pool\n4 Goroutines\nBuffered chan 10,000 msgs\nclosed cleanly on shutdown"]
+        REGISTRY["obStateRegistry\nthread-safe registry"]
+        OB["L2 Orderbook Engine\nDepth stats (1.5%—30%)"]
+        CVD["CVD Manager\n1s Forward-Fill"]
+        FP["Footprint Engine\nIn-memory Ring Buffer"]
+        FUNDING["Funding Calculator\nOI-weighted global rate"]
+        L3["L3 Microstructure Module\nFIFO VirtualQueue"]
+        HIST["ClickHouse Batcher\nAsync Workers"]
+        EGRESS["Egress Workers Pool\nParallel Publishing"]
     end
 
     subgraph Gateway["📡 WebSocket Gateway (internal/gateway)"]
-        HUB["Topic-Based Hub\nhub.go — map topic → clients\nBroadcastRaw (pre-serialized)"]
-        CLIENT["Client Wrapper\nclient.go\nPing/Pong Keep-Alive · send chan 256"]
+        HUB["Topic-Based Hub\nTopic -> Client mapping"]
+        CLIENT["Client Wrapper\nPing/Pong Keep-Alive"]
     end
 
     subgraph Arbitrage["🔍 Arbitrage Service (services/arbitrage)"]
-        CONS["NATS Consumer\nconsumer.go\nThread-safe price cache"]
-        ANAL["Analyzer Engine\nanalyzer.go\nBasis + Spread + Funding Rate"]
-        ALERT["Alerter\nalerter.go\nPublishes ArbitrageAlert to NATS"]
+        CONS["NATS Consumer\nPrice Cache"]
+        ANAL["Analyzer Engine\nSpread & Funding Alert"]
+        ALERT["Alerter\nNATS Publisher"]
     end
 
     subgraph ClickHouse["🗄️ ClickHouse Database"]
-        T1["trades · MergeTree"]
-        T2["orderbook_snapshots · MergeTree\nTTL 90 days · ZSTD(3)"]
-        T2H["orderbook_snapshots_1h\nReplacingMergeTree · permanent"]
-        T3["market_stats · MergeTree\ndepths: 1.5/3/5/8/10/15/30%"]
-        T4["liquidation_map · SummingMergeTree"]
-        T5["funding_history · MergeTree"]
+        T1["trades"]
+        T2["orderbook_snapshots\nTTL 90 days"]
+        T2H["orderbook_snapshots_1h\npermanent"]
+        T3["market_stats"]
+        T4["liquidation_map"]
+        T5["funding_history"]
     end
 
     subgraph Frontend["🖥️ Next.js 15 Frontend"]
@@ -247,11 +247,14 @@ Standalone microservice watching the same NATS streams for cross-exchange anomal
 | `config` | `GetEnv()`, `GetEnvBool()` with defaults |
 | `messaging` | `InitJetStream()`, `PublishJSON()`, topic generators |
 | `models` | All canonical Go structs (`MarketEvent`, `Trade`, `OrderbookSnapshot`…) |
+| `db` | Consolidated PostgreSQL & ClickHouse shared drivers |
 | `intervals` | Shared `Ms` and `RangeMs` maps — single source of truth for all time intervals |
 
 ---
 
 ### ClickHouse Schema
+
+> Full DDL: `database/clickhouse_schema.sql`
 
 | Table | Engine | Key Details |
 | --- | --- | --- |
@@ -287,44 +290,24 @@ All heavy modules are individually togglable via environment variables:
 
 ```text
 QUANTIX/
+├── database/                # Database schemas (PostgreSQL & ClickHouse)
+├── pkg/
+│   └── shared/              # Common logic & utilities
+│       ├── analytics/       # Indicators & math
+│       ├── config/          # Env & yaml loading
+│       ├── db/              # Database drivers/wrappers
+│       ├── messaging/       # NATS implementation
+│       └── models/          # Shared data structs (MarketEvent, Trade...)
 ├── services/
-│   ├── ingestor/                   # Exchange WebSocket adapters
-│   │   └── internal/exchanges/
-│   │       ├── binance/            # adapter + orderbook + trades + util
-│   │       ├── bybit/ okx/ kraken/ # same modular structure
-│   │       ├── coinbase/ bingx/ hyperliquid/
-│   │       └── interface.go        # ExchangeAdapter interface
-│   ├── processor/                  # L2 Engine, CVD, Footprint, Funding, L3
-│   │   ├── cmd/main.go             # Entry: NATS consumer + obStateRegistry + egress pool
-│   │   └── internal/
-│   │       ├── orderbook/          # book.go, updater.go — consolidated logic
-│   │       ├── cvd/                # engine.go — ring buffer
-│   │       ├── footprint/          # engine.go — ring buffer + delta emission
-│   │       ├── funding/            # calculator.go, repository.go
-│   │       ├── dom/                # engine.go — migrated DOM profile logic
-│   │       ├── heatmap/            # engine.go — migrated heatmap capture logic
-│   │       ├── history/            # batcher.go, repository.go, clickhouse_ddl.sql
-│   │       ├── gateway/            # hub.go, client.go, models.go
-│   │       ├── l3/                 # manager.go, reconstructor.go, kmeans.go
-│   │       ├── db/                 # ClickHouse connection wrapper
-│   │       ├── liquidation/        # liquidation_processor.go
-│   │       └── marketstats/        # engine.go (OI, funding, long/short ratio)
-│   ├── arbitrage/                  # Cross-exchange arbitrage screener
-│   └── api/                        # REST API service
-├── pkg/shared/
-│   ├── config/                     # GetEnv, GetEnvBool
-│   ├── messaging/                  # NATS helpers + topic generators
-│   ├── models/                     # All canonical Go structs
-│   └── intervals/                  # Shared Ms + RangeMs maps
-├── src/                            # Next.js 15 frontend
-│   ├── app/                        # App Router pages
-│   ├── components/                 # Dashboard widgets
-│   └── hooks/                      # useWebSocket, useOrderbook, useWidgetManager
-├── database/
-│   └── clickhouse_ddl.sql          # Canonical DDL (use services/processor/internal/history/ version)
-├── docker-compose.yml              # NATS + ClickHouse containers
-├── start-dev.bat                   # One-click dev stack launcher (Windows)
-└── stop-dev.bat                    # One-click dev stack terminator
+│   ├── api/                 # WebSocket & HTTP Gateway
+│   ├── arbitrage/           # Cross-exchange analysis
+│   ├── ingestor/            # Data acquisition (Adapters: Binance, OKX...)
+│   └── processor/           # Analytics engine (CVD, Heatmap, Footprint...)
+├── src/                     # Next.js 15 frontend
+├── cmd/                     # Misc CLI tools
+├── docs/                    # Architectural & API documentation
+├── tests/                   # Integration and verification tests
+└── docker-compose.yml       # Infrastructure (NATS, ClickHouse)
 ```
 
 ---
@@ -363,7 +346,8 @@ QUANTIX/
 - [x] Cross-Exchange Arbitrage Scanner (renamed from `scanner` → `arbitrage`)
 - [x] Modular Exchange Adapters — all 7 exchanges refactored to unified structure
 - [x] **Architectural Audit & Cleanup**: Consolidated L2 stats calculation, removed redundant `internal/stats`, migrated legacy `dom`/`heatmap` code out of `state` package.
-- [x] **Core Refinements**: thread-safe `obStateRegistry`, O(1) `GetMidPrice`, dedup sort, shared `pkg/shared/intervals`, `strconv.ParseFloat` error handling, clean shutdown
+- [x] Shared `pkg/shared/intervals`, `strconv.ParseFloat` error handling, clean shutdown
+- [x] **Structural Refactor**: Standardized service entry points (`cmd/main.go`), consolidated `pkg/shared/db` (added PostgreSQL), and centralized processor orchestrator.
 
 ### ⏳ Phase 3.3: Analytics UI [IN PROGRESS]
 
